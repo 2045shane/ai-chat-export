@@ -23,5 +23,6 @@ test('content script bundles with checkout disabled', async () => {
   assert.match(text, /有问题请联系我/);
   assert.equal(text.includes('all_urls'), false);
   assert.equal(text.includes('chrome.debugger'), false);
-  assert.equal(/\bfetch\s*\(/.test(text), false);
+  assert.equal(text.includes('createObjectURL'), false);
+  assert.match(text, /\/rest\/app-chat\/conversations/);
 });

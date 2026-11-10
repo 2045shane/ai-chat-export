@@ -1,6 +1,7 @@
 import { assignUniqueMarkdownNames, createBulkJob, recordExtracted } from '../lib/bulk.js';
 import { STORAGE_JOB, STORAGE_LICENSE, STORAGE_USAGE } from '../lib/constants.js';
 import { blockedBulkCopy, historyListState, quotaLabel } from '../lib/copy.js';
+import { collectGrokBulkExport, discoverGrokHistory } from '../extract/grok-bulk.js';
 import { extractCurrent, listVisibleHistory, platformFromHostname } from '../extract/index.js';
 import { markdownFilename } from '../lib/filename.js';
 import { isValidBuyoutCode } from '../lib/license.js';
@@ -71,7 +72,7 @@ function boot() {
   ui.onExportSelected(() => exportSelected(platform, ui));
   ui.onRefresh(() => paintList(platform, ui));
   ui.onOpenOptions(() => chrome.runtime.openOptionsPage());
-  paintList(platform, ui);
+  paintList(platform, ui).catch(() => ui.setStatus('读取对话列表失败'));
   refreshQuota(ui).catch((error) => ui.setStatus(error.message));
   getJob()
     .then((job) => {
@@ -142,11 +143,12 @@ function mountPanel() {
     setQuota(text) {
       quota.textContent = text;
     },
-    setList(items, platform) {
+    setList(items, platform, emptyMessage) {
       list.replaceChildren();
       const state = historyListState(items, platform);
-      empty.hidden = !state.empty;
-      empty.textContent = state.message;
+      const message = items.length ? '' : emptyMessage || state.message;
+      empty.hidden = !message;
+      empty.textContent = message;
       for (const item of items) {
         const label = document.createElement('label');
         label.className = 'choice';
@@ -214,8 +216,19 @@ function button(text, className) {
   return el;
 }
 
-function paintList(platform, ui) {
-  ui.setList(listVisibleHistory(platform, document, location.href), platform);
+async function paintList(platform, ui) {
+  if (platform !== 'grok') {
+    ui.setList(listVisibleHistory(platform, document, location.href), platform);
+    return;
+  }
+  ui.setStatus('正在读取 Grok 对话列表…');
+  const found = await discoverGrokHistory({
+    doc: document,
+    fetchImpl: globalThis.fetch.bind(globalThis),
+    pageUrl: location.href,
+  });
+  ui.setList(found.items, platform, found.message);
+  ui.setStatus(found.items.length ? `已找到 ${found.items.length} 条对话` : found.message);
 }
 
 async function refreshQuota(ui) {
@@ -267,10 +280,41 @@ async function exportSelected(platform, ui) {
     return;
   }
   if (!licensed) await writeUsage(nextUsage(usage, today));
-  await setJob(created.job);
   await refreshQuota(ui);
   ui.open();
+  if (platform === 'grok') {
+    resumeStarted = true;
+    try {
+      await exportGrokById(ui, created.job.queue);
+    } finally {
+      resumeStarted = false;
+    }
+    return;
+  }
+  await setJob(created.job);
   await resumeJob(platform, ui, created.job);
+}
+
+async function exportGrokById(ui, queue) {
+  const result = await collectGrokBulkExport(queue, {
+    fetchImpl: globalThis.fetch.bind(globalThis),
+    exportedAt: new Date().toISOString(),
+  });
+  const files = assignUniqueMarkdownNames(result.files);
+  const response = await sendDownload({
+    type: 'download',
+    kind: 'zip',
+    filename: `对话批量-${todayKey()}.zip`,
+    files,
+  });
+  const missed = result.failures.map((failure) => failure.title).join('、');
+  const note = missed ? ` 未读到正文：${missed}` : '';
+  ui.setStatus(response.ok ? `批量导出已开始下载。${note}` : `下载失败：${response.error || ''}`);
+  try {
+    await refreshQuota(ui);
+  } catch {
+    // The download result still stands when the quota label cannot refresh.
+  }
 }
 
 async function resumeJob(platform, ui, existing) {

@@ -21,8 +21,8 @@ Chrome：打开 `chrome://extensions`，开启开发者模式，选择「加载�
 1. 打开 `grok.com` 或 `gemini.google.com` 的对话页。
 2. 点右下角「导出对话」。
 3. 「导出当前对话」不限次数。读不到正文时不会编造，并取消下载。
-4. 「批量导出」只列出当前页已经渲染出来的历史。没有这种列表时显示「未找到对话列表，请在 grok.com 对话页打开」（Gemini 页会写成 gemini.google.com），并附一句英文。
-5. 至少勾选 2 条，再点「导出选中对话」。扩展会在**当前标签页**里依次打开这些对话，然后下载 `对话批量-日期.zip`。
+4. 「批量导出」在 Grok 上先读本站自己的对话列表（只请求第一页，不翻页）。读不到时再看侧栏里的按钮或非链接节点。都失败时，面板会用中英文写出试过的每一种办法。Gemini 仍只看页面上已经渲染的历史链接。
+5. 至少勾选 2 条，再点「导出选中对话」。Grok 按对话 id 向 grok.com 读取正文并下载 zip，不会把内容发到别处；某一条失败会留在 zip 里并在面板点名，不会悄悄丢掉。Gemini 仍会在当前标签页依次打开这些对话。
 
 页面上没有的标题、时间、代码语言不会补写。时间只在页面里存在 `time[datetime]` 时写入。
 
@@ -66,11 +66,66 @@ ACE-LOCAL-0001
 npm test
 ```
 
+## Grok 列表诊断
+
+下面这段只在你已经打开的 grok.com 页面控制台里运行。它用相对地址读取本站接口，打印状态码和 JSON 的键名，不打印正文、cookie 或 token。接口路径都还没有在开发环境核实。
+
+```javascript
+const LIST = [
+  '/rest/app-chat/conversations?pageSize=60',
+  '/rest/app-chat/conversations',
+  '/rest/app-chat/conversations_v2?pageSize=60',
+];
+const id = (location.pathname.match(/\/c\/([A-Za-z0-9_-]{8,})/) || [])[1] || '';
+const contentPaths = id
+  ? [
+      '/rest/app-chat/conversations/' + id + '/responses',
+      '/rest/app-chat/conversations_v2/' + id,
+      '/rest/app-chat/conversations/' + id,
+      '/rest/app-chat/conversations/' + id + '/response-node?includeThreads=true',
+      '/rest/app-chat/conversations/' + id + '/load-responses',
+    ]
+  : [];
+async function shape(path, options) {
+  try {
+    const res = await fetch(path, {
+      method: options?.method || 'GET',
+      credentials: 'include',
+      headers: { accept: 'application/json', ...(options?.headers || {}) },
+      body: options?.body,
+    });
+    const info = { status: res.status };
+    if (!res.ok) return info;
+    const data = await res.clone().json();
+    info.type = Array.isArray(data) ? 'array' : typeof data;
+    info.keys = data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data).slice(0, 12) : [];
+    const rows = Array.isArray(data) ? data : data.conversations || data.items || data.data || data.responses || data.messages || [];
+    info.rowCount = Array.isArray(rows) ? rows.length : 0;
+    info.rowKeys = rows[0] && typeof rows[0] === 'object' ? Object.keys(rows[0]).slice(0, 12) : [];
+    return info;
+  } catch {
+    return { error: 'request failed' };
+  }
+}
+for (const path of LIST) console.log(path, await shape(path));
+const nodes = [...document.querySelectorAll('aside button, nav button, [role="navigation"] button, button, [role="button"]')];
+const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const sidebarHits = nodes.filter((node) => uuid.test(node.outerHTML.slice(0, 500))).length;
+console.log('sidebar non-link uuid hits', sidebarHits, 'anchor /c/ hits', document.querySelectorAll('a[href*="/c/"]').length);
+for (const path of contentPaths) {
+  const options = path.endsWith('/load-responses')
+    ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ responseIds: [] }) }
+    : undefined;
+  console.log(path, await shape(path, options));
+}
+```
+
+`load-responses` 这一步在诊断里会带上空的 `responseIds`，只为了看状态码。扩展本身只有在前一个接口返回了 id、且没有正文时，才会把那些 id 发回 grok.com。
+
 ## 已知限制
 
-- 本环境没有打开真实的 Grok / Gemini 页面。侧栏选择器是按公开描述写的假设，**没有在线上 DOM 核对过**。列表为空时，先确认自己在对话页，再点「刷新可见列表」。
+- 本环境没有打开真实的 grok.com。列表接口、正文接口和侧栏非链接节点都**没有核实**。Shane 的页面上历史项不是 `a[href]`。
+- Grok 批量只请求列表的第一页，不跟随下一页，也不做全库扫描。Gemini 批量仍会依次打开当前标签页里勾选的对话。
 - 下载由服务工作者用 `data:` URL 交给 `chrome.downloads`。该环境没有 `URL.createObjectURL`。很大的对话可能超出浏览器对 data URL 的长度限制。
-- 批量列表不滚动、不翻页，也不做全库扫描。侧栏还没渲染出来时，先点「刷新可见列表」。
-- 批量导出会离开当前页，依次打开勾选的对话；中途关掉标签页，这次任务停止（免费次数在任务开始时扣除）。
 - 读不到正文时，zip 里对应文件只会说明没读到，不会编造对话。
 - 内嵌的 data URL 图片只保留说明文字，避免把大段二进制写进 Markdown。普通 http(s) 图片保留链接。

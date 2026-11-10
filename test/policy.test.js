@@ -57,15 +57,31 @@ test('shipping files have no payment client, upload call, or broad host', () => 
     /^(https:\/\/grok\.com|https:\/\/gemini\.google\.com|https:\/\/www\.xiaohongshu\.com\/search_result\?keyword=)/;
   for (const file of files) {
     const text = readFileSync(file, 'utf8');
-    for (const pattern of forbidden) assert.equal(pattern.test(text), false, `${file} matched ${pattern}`);
+    for (const pattern of forbidden) {
+      if (pattern.source === '\\bfetch\\s*\\(' && file.endsWith(`${sep()}README.md`)) continue;
+      assert.equal(pattern.test(text), false, `${file} matched ${pattern}`);
+    }
     for (const url of text.match(/https?:\/\/[^\s"'`)<>]+/g) || []) {
       assert.equal(allowedUrl.test(url), true, `${file} has ${url}`);
     }
   }
+  const bulk = readFileSync(join(ROOT, 'src/extract/grok-bulk.js'), 'utf8');
+  assert.equal(bulk.includes('fetch('), false);
+  assert.match(bulk, /credentials:\s*'include'/);
+  const background = readFileSync(join(ROOT, 'src/background.js'), 'utf8');
+  assert.equal(background.includes('fetch'), false);
+  const current = readFileSync(join(ROOT, 'src/content/main.js'), 'utf8');
+  const single = current.slice(current.indexOf('async function exportCurrent'), current.indexOf('async function exportSelected'));
+  assert.equal(single.includes('discoverGrokHistory'), false);
+  assert.equal(single.includes('collectGrokBulkExport'), false);
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
   assert.equal(pkg.dependencies, undefined);
   assert.deepEqual(Object.keys(pkg.devDependencies || {}).sort(), ['esbuild', 'jsdom']);
 });
+
+function sep() {
+  return join('a', 'b').includes('\\') ? '\\' : '/';
+}
 
 function walk(dir, acc = []) {
   for (const name of readdirSync(dir)) {
