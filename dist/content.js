@@ -12,7 +12,15 @@
   var CONTACT_HANDLE = "珊哥爱读书";
   var CONTACT_URL = "https://www.xiaohongshu.com/search_result?keyword=" + encodeURIComponent(CONTACT_HANDLE);
   var BUYOUT_PLACEHOLDER_LABEL = "一次性买断（即将上线）";
-  var EMPTY_HISTORY_MESSAGE = "当前页面没有可见的历史对话";
+  function emptyHistoryMessage(platform) {
+    if (platform === "grok") {
+      return "未找到对话列表，请在 grok.com 对话页打开。No conversation list found. Open a grok.com chat.";
+    }
+    if (platform === "gemini") {
+      return "未找到对话列表，请在 gemini.google.com 对话页打开。No conversation list found. Open a gemini.google.com chat.";
+    }
+    return "未找到对话列表，请在 grok.com 或 gemini.google.com 的对话页打开。No conversation list found. Open a chat on grok.com or gemini.google.com.";
+  }
   var NEED_TWO_MESSAGE = "请至少勾选 2 条可见对话";
   function buyoutPlaceholder() {
     if (BUYOUT_CHECKOUT_ENABLED) {
@@ -35,9 +43,9 @@
     if (gate.licensed) return "本地买断已生效，批量不限次";
     return `今日剩余批量次数：${gate.remaining}`;
   }
-  function historyListState(items) {
+  function historyListState(items, platform) {
     if (!items || items.length === 0) {
-      return { empty: true, message: EMPTY_HISTORY_MESSAGE };
+      return { empty: true, message: emptyHistoryMessage(platform) };
     }
     return { empty: false, message: "" };
   }
@@ -673,9 +681,9 @@ ${lines.join("\n")}
       setQuota(text) {
         quota.textContent = text;
       },
-      setList(items) {
+      setList(items, platform) {
         list.replaceChildren();
-        const state = historyListState(items);
+        const state = historyListState(items, platform);
         empty.hidden = !state.empty;
         empty.textContent = state.message;
         for (const item of items) {
@@ -744,7 +752,7 @@ ${lines.join("\n")}
     return el;
   }
   function paintList(platform, ui) {
-    ui.setList(listVisibleHistory(platform, document, location.href));
+    ui.setList(listVisibleHistory(platform, document, location.href), platform);
   }
   async function refreshQuota(ui) {
     const licensed = await readLicensed();

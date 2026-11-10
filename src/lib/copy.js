@@ -5,7 +5,15 @@ export const CONTACT_HANDLE = '珊哥爱读书';
 export const CONTACT_URL =
   'https://www.xiaohongshu.com/search_result?keyword=' + encodeURIComponent(CONTACT_HANDLE);
 export const BUYOUT_PLACEHOLDER_LABEL = '一次性买断（即将上线）';
-export const EMPTY_HISTORY_MESSAGE = '当前页面没有可见的历史对话';
+export function emptyHistoryMessage(platform) {
+  if (platform === 'grok') {
+    return '未找到对话列表，请在 grok.com 对话页打开。No conversation list found. Open a grok.com chat.';
+  }
+  if (platform === 'gemini') {
+    return '未找到对话列表，请在 gemini.google.com 对话页打开。No conversation list found. Open a gemini.google.com chat.';
+  }
+  return '未找到对话列表，请在 grok.com 或 gemini.google.com 的对话页打开。No conversation list found. Open a chat on grok.com or gemini.google.com.';
+}
 export const NEED_TWO_MESSAGE = '请至少勾选 2 条可见对话';
 
 export function buyoutPlaceholder() {
@@ -32,9 +40,9 @@ export function quotaLabel(gate) {
   return `今日剩余批量次数：${gate.remaining}`;
 }
 
-export function historyListState(items) {
+export function historyListState(items, platform) {
   if (!items || items.length === 0) {
-    return { empty: true, message: EMPTY_HISTORY_MESSAGE };
+    return { empty: true, message: emptyHistoryMessage(platform) };
   }
   return { empty: false, message: '' };
 }

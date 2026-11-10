@@ -82,8 +82,14 @@ test('bulk job needs two visible chats and walks them in order', () => {
   );
 });
 
-test('empty visible history is a stated empty state', () => {
-  assert.deepEqual(historyListState([]), { empty: true, message: '当前页面没有可见的历史对话' });
+test('empty visible history tells the user to open a chat page', () => {
+  const grok = historyListState([], 'grok');
+  assert.equal(grok.empty, true);
+  assert.match(grok.message, /未找到对话列表，请在 grok.com 对话页打开/);
+  assert.match(grok.message, /No conversation list found\. Open a grok.com chat\./);
+  const gemini = historyListState([], 'gemini');
+  assert.match(gemini.message, /gemini\.google\.com/);
+  assert.match(gemini.message, /No conversation list found/);
 });
 
 test('filenames drop path characters', () => {

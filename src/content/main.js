@@ -142,9 +142,9 @@ function mountPanel() {
     setQuota(text) {
       quota.textContent = text;
     },
-    setList(items) {
+    setList(items, platform) {
       list.replaceChildren();
-      const state = historyListState(items);
+      const state = historyListState(items, platform);
       empty.hidden = !state.empty;
       empty.textContent = state.message;
       for (const item of items) {
@@ -215,7 +215,7 @@ function button(text, className) {
 }
 
 function paintList(platform, ui) {
-  ui.setList(listVisibleHistory(platform, document, location.href));
+  ui.setList(listVisibleHistory(platform, document, location.href), platform);
 }
 
 async function refreshQuota(ui) {
