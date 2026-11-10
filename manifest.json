@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "AI 聊天导出",
+  "version": "0.1.0",
+  "description": "把当前打开的 Grok 或 Gemini 对话导出为 Markdown。内容只在本地处理，不会上传。",
+  "minimum_chrome_version": "102",
+  "permissions": ["storage", "downloads"],
+  "host_permissions": [
+    "https://grok.com/*",
+    "https://gemini.google.com/*"
+  ],
+  "action": {
+    "default_title": "AI 聊天导出",
+    "default_popup": "src/popup.html"
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://grok.com/*", "https://gemini.google.com/*"],
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "src/options.html",
+    "open_in_tab": true
+  }
+}
