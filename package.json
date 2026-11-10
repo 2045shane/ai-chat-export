@@ -1,0 +1,15 @@
+{
+  "name": "ai-chat-export",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "把当前打开的 Grok 或 Gemini 对话导出为 Markdown。",
+  "scripts": {
+    "build": "esbuild src/content/main.js --bundle --format=iife --target=es2022 --charset=utf8 --outfile=dist/content.js",
+    "test": "node --test --test-reporter=spec test/*.test.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "jsdom": "^26.0.0"
+  }
+}

@@ -1,0 +1,50 @@
+<!doctype html>
+<!-- SYNTHETIC FIXTURE. Not captured from a live gemini.google.com page. -->
+<html lang="zh-CN">
+  <body>
+    <nav>
+      <a data-test-id="conversation" aria-current="true" href="/app/aaaaaaaaaaaaaaaa">
+        <span class="conversation-title">星表草稿</span>
+      </a>
+      <a data-test-id="conversation" href="/app/bbbbbbbbbbbbbbbb">
+        <span class="conversation-title">第二篇</span>
+      </a>
+      <div hidden>
+        <a data-test-id="conversation" href="/app/cccccccccccccccc">
+          <span class="conversation-title">未显示</span>
+        </a>
+      </div>
+    </nav>
+    <main>
+      <a href="/app/dddddddddddddddd">不是列表</a>
+      <div class="conversation-container" id="turn-1">
+        <user-query>
+          <div class="query-text">
+            <p>解释表格和代码</p>
+          </div>
+        </user-query>
+        <model-response>
+          <div class="markdown markdown-main-panel">
+            <p>参考 <a href="https://example.com/gem">说明</a></p>
+            <h2>步骤</h2>
+            <code-block>
+              <div class="code-block-decoration">
+                <span>python</span>
+                <button type="button">复制</button>
+              </div>
+              <pre><code>print("hi")</code></pre>
+            </code-block>
+            <table>
+              <thead>
+                <tr><th>列</th><th>值</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>甲</td><td>1</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </model-response>
+      </div>
+    </main>
+  </body>
+</html>
